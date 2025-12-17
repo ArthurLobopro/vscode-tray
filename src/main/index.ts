@@ -16,8 +16,6 @@ if (started) {
     app.quit();
 }
 
-let tray: Tray | null = null;
-
 app.on("window-all-closed", () => {});
 
 function buildTrayMenu(updateTray: () => void) {
@@ -25,63 +23,89 @@ function buildTrayMenu(updateTray: () => void) {
 
     console.log(collections);
 
-    const collectionMenus = collections.map((collection) => ({
-        label: collection.name,
-        submenu: [
-            ...collection.itens.map((item: { name: any; path: string }) => ({
-                label: item.name,
-                submenu: [
-                    {
-                        label: "Code",
-                        click() {
-                            spawn("code", [item.path]);
+    const collectionMenus: Electron.MenuItemConstructorOptions[] =
+        collections.map((collection) => ({
+            label: collection.name,
+
+            submenu: [
+                ...collection.itens.map((item) => ({
+                    label: item.name,
+                    submenu: [
+                        {
+                            label: "Code",
+                            click() {
+                                spawn("code", [item.path]);
+                            },
                         },
-                    },
-                    {
-                        label: "Gerenciador",
-                        click: () => {
-                            shell.openPath(item.path);
+                        {
+                            label: "Gerenciador",
+                            click: () => {
+                                shell.openPath(item.path);
+                            },
                         },
-                    },
-                ],
-            })),
-            {
-                label: "Adicionar Item",
-                click() {
-                    dialog
-                        .showOpenDialog({
-                            properties: ["openDirectory"],
-                            title: "Selecione a pasta de um projeto",
-                        })
-                        .then(async (res) => {
-                            if (!res.canceled) {
-                                console.log(res);
+                        {
+                            label: "Deletar",
+                            click() {
+                                dialog
+                                    .showMessageBox({
+                                        type: "question",
+                                        title: `Deletar ${item.name}`,
+                                        buttons: ["Sim", "Não"],
+                                        defaultId: 0,
+                                        cancelId: 1,
+                                        message:
+                                            "Não há como voltar atrás, deseja mesmo continuar?",
+                                    })
+                                    .then((res) => {
+                                        if (res.response === 0) {
+                                            collectionsController.removeItem(
+                                                collection.id,
+                                                item.id
+                                            );
+                                            updateTray();
+                                        }
+                                    });
+                            },
+                        },
+                    ],
+                })),
+                {
+                    label: "Adicionar Item",
+                    click() {
+                        dialog
+                            .showOpenDialog({
+                                properties: ["openDirectory"],
+                                title: "Selecione a pasta de um projeto",
+                            })
+                            .then(async (res) => {
+                                if (!res.canceled) {
+                                    console.log(res);
 
-                                const name = await prompt({
-                                    title: "Informe o nome do item",
-                                    label: "Nome:",
-                                });
+                                    const name = await prompt({
+                                        title: "Informe o nome do item",
+                                        label: "Nome:",
+                                    });
 
-                                if (name) {
-                                    const collectionItem =
-                                        collectionItemSchema.parse({
-                                            path: res.filePaths[0],
-                                            name,
-                                        });
+                                    if (name) {
+                                        const collectionItem =
+                                            collectionItemSchema.parse({
+                                                path: res.filePaths[0],
+                                                name,
+                                            });
 
-                                    collectionsController.addItem(
-                                        collection.id,
-                                        collectionItem
-                                    );
+                                        collectionsController.addItem(
+                                            collection.id,
+                                            collectionItem
+                                        );
 
-                                    updateTray();
+                                        updateTray();
+                                    }
                                 }
-                            }
-                        });
+                            });
+                    },
                 },
-            },
-        ],
-    }));
+            ],
+        }));
 
     return Menu.buildFromTemplate([
         ...collectionMenus,
@@ -89,13 +113,6 @@ function buildTrayMenu(updateTray: () => void) {
         {
             label: "Adicionar Coleção",
             click: async () => {
-                // const { response, checkboxChecked } =
-                //     await dialog.showMessageBox({
-                //         type: "question",
-                //         buttons: ["OK"],
-                //         title: "Adicionar Collection",
-                //         message: "Funcionalidade de adicionar collection aqui.",
-                //     });
                 const name = await prompt({
                     title: "Informe o nome da Coleção",
                     label: "Nome:",
@@ -118,7 +135,7 @@ function buildTrayMenu(updateTray: () => void) {
 }
 
 app.whenReady().then(() => {
-    tray = new Tray(path.join(__dirname, "../../", "icon.png"));
+    const tray = new Tray(path.join(__dirname, "../../", "icon.png"));
     tray.setToolTip("VSCode Tray");
 
     const setMenu = () => {

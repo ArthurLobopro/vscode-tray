@@ -51,6 +51,17 @@ class CollectionsController {
 
         CollectionStore.set("collections", collections);
     }
+
+    removeItem(collectionId: string, itemId: string) {
+        const collections = this.getCollections();
+        const index = collections.findIndex((c) => c.id === collectionId);
+
+        collections[index].itens = collections[index].itens.filter(
+            (i) => i.id !== itemId
+        );
+
+        CollectionStore.set("collections", collections);
+    }
 }
 
 export const collectionsController = new CollectionsController();
